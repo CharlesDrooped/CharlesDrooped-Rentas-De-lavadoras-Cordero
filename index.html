@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="es-MX">
 <head>
-<link rel="icon" type="image/png" href="logo.png">
-<link rel="apple-touch-icon" href="logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema Rentas Cordero</title>
@@ -611,19 +609,40 @@
     let dib = false;
     canvas.addEventListener('mousedown', () => dib = true);
     window.addEventListener('mouseup', () => { dib = false; ctx.beginPath(); });
+
+    // CÓDIGO COMPLETADO AQUÍ (Faltaba el movimiento del mouse y soporte para celular)
     canvas.addEventListener('mousemove', (e) => {
-        if(!dib) return;
+        if (!dib) return;
         const rect = canvas.getBoundingClientRect();
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
         ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
         ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     });
 
-    // Cerrar autocompletado al hacer click fuera
-    window.addEventListener('click', (e) => {
-        if (!e.target.closest('.ac-wrapper')) {
-            document.querySelectorAll('.ac-dropdown').forEach(d => d.style.display = 'none');
-        }
-    });
+    // Soporte para firmar desde Celular
+    canvas.addEventListener('touchstart', (e) => {
+        dib = true;
+        ctx.beginPath();
+        e.preventDefault(); 
+    }, {passive: false});
+
+    canvas.addEventListener('touchend', () => { dib = false; }, {passive: false});
+
+    canvas.addEventListener('touchmove', (e) => {
+        if(!dib) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    }, {passive: false});
 
 </script>
 </body>
