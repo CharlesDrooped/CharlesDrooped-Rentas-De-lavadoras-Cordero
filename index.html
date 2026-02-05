@@ -124,7 +124,7 @@
         </div>
     </div>
     
-    <img src="Logo-contrato.png" id="logoContratoHidden" style="display:none;" alt="Logo Contrato">
+    <img src="Logo-contrato.png" id="imgTicket" style="display:none;" alt="Logo Ticket">
 
     <div class="subtitulo">Inventario de Equipos</div>
     <div class="grid-inputs" style="margin-bottom: 20px;">
@@ -137,7 +137,7 @@
     <div class="subtitulo">Registro de Cliente</div>
     <div class="grid-inputs" id="form-registro">
         <div class="ac-wrapper">
-            <input type="text" id="nombre" placeholder="Nombre Completo" onkeyup="autoCompleta(this, 'nombre')">
+            <input type="text" id="nombre" placeholder="Nombre Completo" onkeyup="autoCompleta(this, 'nombre')" onblur="setTimeout(() => document.getElementById('sug-nombre').style.display='none', 200)">
             <div id="sug-nombre" class="ac-dropdown"></div>
         </div>
         <input type="text" id="calle" placeholder="Calle">
@@ -153,7 +153,11 @@
     </div>
 
     <div class="subtitulo">Listado de Servicios</div>
-    <input type="text" id="buscador" placeholder="🔍 Buscar cliente, folio o dirección..." onkeyup="renderTablas(this.value)" style="width: 100%; margin-bottom: 20px; padding: 12px; border: 1px solid #ddd;">
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="buscador" placeholder="🔍 Buscar cliente, folio o dirección..." onkeyup="renderTablas(this.value)" style="width: 100%;">
+        <button class="btn-negro" onclick="renderTablas(document.getElementById('buscador').value)" style="white-space: nowrap;">Buscar</button>
+    </div>
     
     <div class="table-container">
         <table>
@@ -819,7 +823,10 @@
                     <td>
                         <div style="display:flex; flex-direction:column; gap:4px;">
                             ${p.estado === 'verde' ? `
-                                <button class="btn-rerentar" onclick="reRentar('${p.id}')">Re-rentar</button>
+                                <div style="display:flex; align-items:center; gap:5px;">
+                                    <button class="btn-rerentar" onclick="reRentar('${p.id}')" style="flex-grow:1;">Renovación de renta</button>
+                                    <button onclick="eliminarPedido('${p.id}')" style="background:none; border:none; color:var(--rojo); font-weight:bold; font-size:16px; cursor:pointer;" title="Eliminar registro">X</button>
+                                </div>
                             ` : `
                                 <button onclick="generarContrato('${p.id}')" style="font-size:11px; font-weight:bold;">📄 Contrato</button>
                                 
@@ -828,9 +835,9 @@
                                 ${p.estado === 'negro' ? `<button class="btn-negro" onclick="abrirFirma('${p.id}')">Entregar</button>` : ''}
                                 ${!p.pagado && p.estado !== 'negro' ? `<button class="btn-pago" onclick="pagarRenta('${p.id}')">Pagar Renta</button>` : ''}
                                 ${p.aplazos > 0 && p.aplazosPagados < p.aplazos ? `<button class="btn-pago" style="background:#8e44ad" onclick="pagarAplazamiento('${p.id}')">Pago Aplazo</button>` : ''}
-                                ${p.estado !== 'negro' ? `<button class="btn-rerentar" onclick="reRentar('${p.id}')">Re-rentar</button>` : ''}
-                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button class="btn-aplazar" onclick="aplazar('${p.id}')">Aplazar</button>` : ''}
-                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button onclick="finalizar('${p.id}')" style="background:var(--verde); color:white; border:none; padding:5px;">✓ Recoger</button>` : ''}
+                                ${p.estado !== 'negro' ? `<button class="btn-rerentar" onclick="reRentar('${p.id}')">Renovación de renta</button>` : ''}
+                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button class="btn-aplazar" onclick="aplazar('${p.id}')">Renovar fecha</button>` : ''}
+                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button onclick="finalizar('${p.id}')" style="background:var(--verde); color:white; border:none; padding:5px;">Finalizar rentado</button>` : ''}
                                 <button class="btn-del-tabla" onclick="eliminarPedido('${p.id}')">Eliminar ×</button>
                             `}
                         </div>
@@ -847,10 +854,12 @@
         if(!p) return;
         const l = window.lavadoras.find(lav => lav.num === p.lav) || {mod: "Genérica"};
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        
+        // FORMATO TICKET (ANCHURA 48MM, ALTURA AUTOMÁTICA APROX 350MM)
+        const doc = new jsPDF({ unit: 'mm', format: [48, 350] });
         
         // AGREGAR LOGO (MODIFICADO PARA USAR LA IMAGEN ESPECÍFICA)
-        const imgElement = document.getElementById('logoContratoHidden');
+        const imgElement = document.getElementById('imgTicket');
         if (imgElement && imgElement.src) {
             try {
                 // Dibujar en canvas temporal para asegurar la conversión correcta a dataURL
@@ -861,38 +870,52 @@
                 ctxImg.drawImage(imgElement, 0, 0);
                 const imgData = canvasImg.toDataURL('image/png');
                 
-                // Agregar al PDF en la esquina superior izquierda (x=15, y=10, w=25, h=25 aprox)
-                doc.addImage(imgData, 'PNG', 15, 10, 25, 25);
+                // Agregar al PDF (Logo pequeño arriba)
+                doc.addImage(imgData, 'PNG', 2, 2, 12, 12);
             } catch(e) {
                 console.warn("No se pudo cargar el logo en el PDF", e);
             }
         }
 
+        // CONFIGURACIÓN DE TEXTOS PARA TICKET (48mm ANCHO)
+        // Usamos fuente pequeña para que quepa todo el texto original
+        doc.setFontSize(9);
+        doc.text("RENTAS CORDERO", 24, 18, {align: 'center'}); // Centrado (48/2 = 24)
+        
+        doc.setFontSize(7);
+        doc.text("Cel: 6693291400 / 6691081918", 24, 23, {align: 'center'});
+        
+        doc.setFontSize(6); // Fuente pequeña para el contenido denso
+        let yPos = 30;
+        const margin = 2;
+        const width = 44; // 48 - 4 de margen
+
+        doc.text(`FOLIO: ${p.folio}`, margin, yPos); yPos+=4;
+        doc.text(`FECHA: ${fechaEsp(p.fechaRegistro)}`, margin, yPos); yPos+=4;
+        doc.text(`CLIENTE: ${p.nombre.toUpperCase()}`, margin, yPos); yPos+=4;
+        doc.text(`TEL: ${p.cel}`, margin, yPos); yPos+=4;
+        
+        // CARTA RESPONSIVA (TEXTO EXACTO DEL ARCHIVO ORIGINAL)
+        doc.setFont(undefined, 'bold');
+        doc.text("CARTA RESPONSIVA:", margin, yPos+2); yPos+=6;
+        doc.setFont(undefined, 'normal');
+        
         const fIni = new Date(p.fechaRegistro);
         const fFin = new Date(p.vence);
         const diffTime = Math.abs(fFin - fIni);
         const diasRenta = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 0;
 
-        doc.setFontSize(16);
-        doc.text("CONTRATO DE ARRENDAMIENTO - RENTAS CORDERO", 105, 20, {align: 'center'});
-        doc.setFontSize(11);
-        doc.text("TELÉFONOS: 6693291400 y 6691081918", 105, 28, {align: 'center'});
-        doc.setFontSize(10);
-        doc.text(`FOLIO: ${p.folio}`, 15, 40);
-        doc.text(`FECHA DEL REGISTRO: ${fechaEsp(p.fechaRegistro)}`, 15, 45);
-        doc.text(`TELÉFONO DEL CLIENTE: ${p.cel}`, 15, 50);
-        doc.text(`NOMBRE DE LA PERSONA: ${p.nombre.toUpperCase()}`, 15, 55);
-        doc.setFont(undefined, 'bold');
-        doc.text("CARTA RESPONSIVA", 15, 65);
-        doc.setFont(undefined, 'normal');
         let textoResponsiva = `Rento lavadora por ${diasRenta} días de la marca ${l.mod} (#${p.lav}) con dirección en ${p.calle} #${p.num_casa}, Col. ${p.colonia}. Haciendo entrega el día ${fechaEsp(p.fechaRegistro)} y fecha en la que se recoge el día ${fechaEsp(p.vence)} en la hora acordada.`;
-        let splitResponsiva = doc.splitTextToSize(textoResponsiva, 180);
-        doc.text(splitResponsiva, 15, 70);
         
+        let splitResponsiva = doc.splitTextToSize(textoResponsiva, width);
+        doc.text(splitResponsiva, margin, yPos);
+        yPos += (splitResponsiva.length * 3) + 2;
+
+        // CLÁUSULAS (TEXTO EXACTO DEL ARCHIVO ORIGINAL)
         doc.setFont(undefined, 'bold');
-        doc.text("CLÁUSULAS", 15, 90);
+        doc.text("CLÁUSULAS:", margin, yPos+2); yPos+=6;
         doc.setFont(undefined, 'normal');
-        doc.setFontSize(9);
+        
         let clausulas = [
             "-ESTOY DE ACUERDO QUE DEBE ENTREGAR DICHA LAVADORA EN EL DOMICILIO ACORDADO ANTERIORMENTE, DE LO CONTRARIO, DEBO PAGAR UNA MULTA DEL PAGO ANTERIOR.",
             "-DICHA LAVADORA LA TENGO QUE ENTREGAR EN LAS MISMAS CONDICIONES COMO SE FUE RENTADA, TENGO EL COMPROMISO DE MANTENERLA ASI, HASTA LA FECHA QUE DEBO ENTREGARLA." ,
@@ -900,25 +923,38 @@
             "-SI OCUPO ENTREGAR DICHA LAVADORA ANTES DE TIEMPO, ME COMPROMETO EN AVISAR CON UN MINIMO DE 24 HORAS.",
             "-SI ME INTERESA RENOVAR CONTRATO, DEBO AVISAR ANTES DE LA HORA ACORDADA Y PAGAR, SI NO ES ASI ME COMPROMETO A ENTREGARLA."
         ];
-        let yPos = 95;
+        
         clausulas.forEach(c => {
-            let splitC = doc.splitTextToSize(c, 180);
-            doc.text(splitC, 15, yPos);
-            yPos += (splitC.length * 5);
+            let splitC = doc.splitTextToSize(c, width);
+            doc.text(splitC, margin, yPos);
+            yPos += (splitC.length * 3) + 2;
         });
-        doc.setFontSize(10);
-        doc.text("__________________________________________", 105, yPos + 35, {align: 'center'});
-        doc.text("FIRMA DEL CLIENTE", 105, yPos + 40, {align: 'center'});
 
-        // AGREGAR DATOS DE TRANSFERENCIA AL CONTRATO SI APLICA
+        // TRANSFERENCIA
         if (p.metodoPago === 'Transferencia') {
-            doc.setFontSize(9);
-            doc.setTextColor(41, 128, 185); // Azul para resaltar
-            doc.text("DATOS PARA TRANSFERENCIA:", 15, yPos + 55);
-            doc.text("728969000108174125 spin by oxxo Jorge Arturo Cordero Rojas", 15, yPos + 60);
+            yPos += 2;
+            doc.setFont(undefined, 'bold');
+            doc.text("DATOS TRANSFERENCIA:", margin, yPos); yPos+=4;
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(41, 128, 185);
+            let txtTrans = "728969000108174125 spin by oxxo Jorge Arturo Cordero Rojas";
+            let splitTrans = doc.splitTextToSize(txtTrans, width);
+            doc.text(splitTrans, margin, yPos);
+            yPos += (splitTrans.length * 3) + 2;
+            doc.setTextColor(0, 0, 0); // Restaurar color negro
         }
 
-        doc.save(`${p.fechaRegistro} - ${p.nombre} - ${p.folio}.pdf`);
+        // FIRMA (MAS GRANDE Y VISIBLE)
+        yPos += 30; // Mayor espacio vertical antes de la firma
+        doc.setLineWidth(0.5);
+        doc.line(5, yPos, 43, yPos); // Línea de firma
+        
+        yPos += 5;
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.text("FIRMA DEL CLIENTE", 24, yPos, {align: 'center'});
+
+        doc.save(`Ticket_${p.folio}.pdf`);
     };
 
     window.descargarPDF = () => {
