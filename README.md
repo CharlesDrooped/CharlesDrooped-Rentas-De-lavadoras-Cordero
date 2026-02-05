@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Rentas Cordero</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --negro: #1a1a1a; --verde: #27ae60; --amarillo: #f1c40f; --rojo: #e74c3c; 
+            --mantenimiento: #f39c12; --gris: #f4f4f4; --texto: #333; --azul: #2980b9;
+        }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #ffffff; margin: 20px; color: var(--texto); line-height: 1.6; }
+        .container { max-width: 1200px; margin: auto; }
+        
+        /* HEADER FIJO Y ESTABLE */
+        .header-logo { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; flex-wrap: wrap; height: 100px; overflow: hidden; }
+        .header-logo img { height: 80px; width: auto; border-radius: 50%; object-fit: contain; }
+        h1 { font-weight: 300; font-size: 2rem; margin: 0; }
+        
+        .subtitulo { font-size: 1.1rem; font-weight: 600; color: #888; text-transform: uppercase; margin-top: 40px; margin-bottom: 20px; }
+
+        .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+        .lavadora-card { padding: 15px; border: 1px solid #eee; border-radius: 4px; text-align: center; position: relative; }
+        .lav-libre { border-left: 6px solid var(--verde); }
+        .lav-ocupada { border-left: 6px solid var(--rojo); background: #fafafa; }
+        .lav-mante { border-left: 6px solid var(--mantenimiento); background: #fffcf0; }
+        
+        .btn-mante { margin-top: 10px; font-size: 11px; cursor: pointer; background: none; border: 1px solid #ddd; padding: 4px 8px; }
+        
+        .btn-del-item { position: absolute; top: 5px; right: 5px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 16px; font-weight: bold; transition: color 0.2s; }
+        .btn-del-item:hover { color: var(--rojo); }
+
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        input, select, button, textarea { padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 15px; }
+        .ac-wrapper { position: relative; }
+        .ac-dropdown { position: absolute; background: white; border: 1px solid #ddd; width: 100%; z-index: 100; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .ac-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; min-width: 800px; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #666; font-size: 13px; }
+        td { padding: 12px; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
+        
+        .status-box { padding: 4px 8px; border-radius: 3px; color: white; font-weight: bold; font-size: 11px; display: inline-block; margin-bottom: 2px; }
+        .bg-negro { background: var(--negro); }
+        .bg-amarillo { background: var(--amarillo); color: black; }
+        .bg-rojo { background: var(--rojo); }
+        .bg-verde { background: var(--verde); }
+        .bg-azul { background: var(--azul); }
+
+        /* ESTILO NUEVO MINIMALISTA PARA EL SELECT DE LAVADORA */
+        .select-minimal {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px; /* Bordes más suaves */
+            padding: 8px 30px 8px 12px; /* Espacio extra a la derecha para la flecha */
+            font-size: 13px;
+            color: #444;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            max-width: 160px;
+            /* Flecha SVG personalizada */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 18px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .select-minimal:hover {
+            border-color: #b0bec5;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .select-minimal:focus {
+            outline: none;
+            border-color: var(--azul);
+        }
+
+        /* MODALES */
+        #modalFirma, #modalReporte, #modalAlerta, #modalPagoGeneral { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 10px; overflow-y: auto; }
+        
+        canvas { border: 2px solid #000; background: #fff; touch-action: none; cursor: crosshair; max-width: 100%; height: auto; }
+
+        .btn-negro { background: var(--negro); color: white; cursor: pointer; border: none; }
+        .btn-pdf { background: var(--verde); color: white; border: none; cursor: pointer; padding: 10px; }
+        .btn-pago { background: #8e44ad; color: white; border: none; padding: 5px 10px; cursor: pointer; font-size: 11px; }
+        .btn-aplazar { background: var(--amarillo); color: black; border: none; padding: 5px 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .btn-rerentar { background: var(--azul); color: white; border: none; padding: 5px 10px; cursor: pointer; }
+        .maps-link { color: var(--azul); text-decoration: none; font-weight: bold; font-size: 12px; }
+        
+        /* BOTON DE REPORTE */
+        .btn-reporte { background: #c0392b; color: white; border: none; padding: 5px; font-size: 11px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 4px; border-radius: 3px; }
+        .btn-reporte:hover { background: #a93226; }
+
+        .btn-del-tabla { background: none; border: none; color: #ddd; cursor: pointer; font-weight: bold; padding: 5px; }
+        .btn-del-tabla:hover { color: var(--rojo); }
+
+        /* Estilos Alerta Roja */
+        .alerta-box { background: white; border-left: 8px solid #c0392b; padding: 25px; border-radius: 5px; width: 100%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .alerta-titulo { color: #c0392b; font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .dato-resaltado { background: #fff3cd; padding: 5px 10px; font-weight: bold; border-radius: 4px; border: 1px solid #ffeeba; color: #856404; display: inline-block; margin-top: 5px; width: 100%; box-sizing: border-box; }
+        .alerta-info p { margin: 5px 0; font-size: 14px; color: #333; }
+        
+        /* Texto Transferencia */
+        .txt-trans { display:none; font-size:11px; color:var(--azul); font-weight:bold; background:#eaf2f8; padding:5px; border-radius:4px; margin-top:5px; text-align:center; border: 1px solid #aed6f1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-logo">
+        <img src="logo.png" alt="RC" onerror="this.style.display='none';">
+        <h1>Rentas Cordero <small style="font-size: 10px; color: var(--verde);">● ONLINE</small></h1>
+        <div style="margin-left: auto; display: flex; gap: 10px;">
+            <button class="btn-pdf" onclick="descargarPDF()">Reporte General PDF</button>
+            <button class="btn-negro" onclick="borrarHistorial()" style="background: #c0392b; color: white; font-size: 10px;">🗑 Eliminar Historial</button>
+        </div>
+    </div>
+    
+    <img src="Logo-contrato.png" id="imgTicket" style="display:none;" alt="Logo Ticket">
+
+    <div class="subtitulo">Inventario de Equipos</div>
+    <div class="grid-inputs" style="margin-bottom: 20px;">
+        <input type="text" id="inv_num" placeholder="Número de Lavadora">
+        <input type="text" id="inv_mod" placeholder="Marca / Modelo">
+        <button class="btn-negro" onclick="sumarLavadora()">Registrar Equipo</button>
+    </div>
+    <div id="grid-inv" class="inv-grid"></div>
+
+    <div class="subtitulo">Registro de Cliente</div>
+    <div class="grid-inputs" id="form-registro">
+        <div class="ac-wrapper">
+            <input type="text" id="nombre" placeholder="Nombre Completo" onkeyup="autoCompleta(this, 'nombre')" onblur="setTimeout(() => document.getElementById('sug-nombre').style.display='none', 200)">
+            <div id="sug-nombre" class="ac-dropdown"></div>
+        </div>
+        <input type="text" id="calle" placeholder="Calle">
+        <input type="text" id="num_casa" placeholder="Número de casa">
+        <input type="text" id="colonia" placeholder="Colonia">
+        <input type="text" id="celular" placeholder="Celular (10 dígitos)" maxlength="10">
+        <div style="display: flex; flex-direction: column;">
+            <label style="font-size: 12px; color: #666;">Fecha de recogida:</label>
+            <input type="date" id="fecha_recogida" lang="es-MX">
+        </div>
+        <select id="select_lav"></select>
+        <button class="btn-negro" onclick="crearPedido()">Registrar Entrega</button>
+    </div>
+
+    <div class="subtitulo">Listado de Servicios</div>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="buscador" placeholder="🔍 Buscar cliente, folio o dirección..." onkeyup="renderTablas(this.value)" style="width: 100%;">
+        <button class="btn-negro" onclick="renderTablas(document.getElementById('buscador').value)" style="white-space: nowrap;">Buscar</button>
+    </div>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Folio / Cliente / Ubicación</th>
+                    <th>Lavadora</th>
+                    <th>Estado de Renta</th>
+                    <th>Estado de Pago</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<div id="modalFirma">
+    <div style="background: white; padding: 20px; border-radius: 8px; width: 95%; max-width: 450px; display:flex; flex-direction:column; align-items:center;">
+        <h2 style="margin-top:0; text-align:center;">Confirmación de Entrega</h2>
+        
+        <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 15px; border-radius: 8px; margin-bottom: 15px; width: 100%; font-size: 13px;">
+            <b style="color: #f57c00; display: block; margin-bottom: 5px;">RESUMEN DE CLÁUSULAS:</b>
+            Entrega obligatoria en domicilio registrado, devolución en óptimas condiciones, puntualidad en horario de recogida para evitar cargos extra y aviso previo para renovación o entrega anticipada.
+        </div>
+
+        <div style="margin-bottom: 15px; text-align: center; background: #f4f4f4; padding: 15px; border-radius: 8px; width: 100%;">
+            <label style="font-weight: bold; color: var(--rojo); display: block; margin-bottom: 10px;">📷 FOTO DE INE / COMPROBANTE (OBLIGATORIO):</label>
+            <input type="file" id="fotoDocs" accept="image/*" style="font-size: 13px;">
+            <hr>
+            <label style="font-size: 16px; cursor: pointer; background: #fff; padding: 10px; display: block; border: 1px solid #ddd;">
+                <input type="checkbox" id="checkPagoModal"> <b>¿EL CLIENTE YA PAGÓ?</b>
+            </label>
+            
+            <div id="divPagoOpciones" style="display:none; margin-top:10px; width:100%; border-top:1px solid #eee; padding-top:10px;">
+                <label style="font-size:12px; font-weight:bold;">Método de Pago:</label>
+                <select id="selectMetodoPagoFirma" onchange="toggleInfoTrans(this.value, 'txtTransFirma')" style="width:100%; margin-bottom:5px;">
+                    <option value="Contado">Contado</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+                <div id="txtTransFirma" class="txt-trans">
+                    728969000108174125 spin by oxxo Jorge Arturo Cordero Rojas
+                </div>
+            </div>
+
+        </div>
+        <canvas id="canvasFirma" width="450" height="200"></canvas>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="cerrarFirma()" style="padding: 10px 20px;">Cancelar</button>
+            <button onclick="limpiarFirma()" style="padding: 10px 20px;">Limpiar</button>
+            <button class="btn-negro" onclick="confirmarEntrega()" style="padding: 10px 40px;">CONFIRMAR ENTREGA</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalReporte">
+    <div style="background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+        <h3 style="margin-top:0; color: #c0392b; border-bottom: 1px solid #eee; padding-bottom: 10px;">⚠️ Reportar Usuario</h3>
+        <p style="font-size:13px; color:#666; margin-bottom: 15px;">La información de este usuario quedará guardada permanentemente en la lista de infracciones.</p>
+        
+        <label style="font-weight:bold; font-size:12px; display:block; margin-bottom:5px;">Motivo del reporte:</label>
+        <select id="motivoReporte" onchange="toggleOtro(this.value)" style="width:100%; margin-bottom:10px;">
+            <option value="">Seleccione una opción...</option>
+            <option value="No contestar a tiempo las llamadas">No contestar a tiempo las llamadas</option>
+            <option value="No atender a la hora de entregar">No atender a la hora de entregar</option>
+            <option value="Pagos tardios">Pagos tardios</option>
+            <option value="Posbile mal uso de la lavadora">Posbile mal uso de la lavadora</option>
+            <option value="Otro">Otro</option>
+        </select>
+        
+        <textarea id="motivoOtro" placeholder="Describa la razón del reporte..." style="width:100%; display:none; height:80px; margin-bottom:10px; resize:none; box-sizing:border-box; font-family:inherit;"></textarea>
+        
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button onclick="document.getElementById('modalReporte').style.display='none'" style="background:#f0f0f0; border:1px solid #ddd; cursor:pointer; padding: 8px 15px; border-radius: 4px;">Cancelar</button>
+            <button class="btn-negro" onclick="guardarReporte()" style="background:#c0392b; border-radius: 4px;">REPORTAR</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAlerta">
+    <div class="alerta-box">
+        <div class="alerta-titulo">🚫 USUARIO CON REPORTES</div>
+        <p style="color:#555; margin-bottom:15px; font-size: 14px;">El sistema ha detectado coincidencias con una persona previamente reportada. Por favor revise la información.</p>
+        
+        <div class="alerta-info" style="background:#fafafa; padding:15px; border-radius:5px; border:1px solid #eee; margin-bottom:20px;">
+            <p><b>Nombre:</b> <span id="alertNombre"></span></p>
+            <p><b>Teléfono:</b> <span id="alertCel"></span></p>
+            <p><b>Dirección Registrada:</b> <span id="alertDireccion"></span></p>
+            <p><b>Folio Anterior:</b> <span id="alertFolio"></span></p>
+            <div style="margin-top:15px;">
+                <label style="font-size:11px; font-weight:bold; color:#c0392b; text-transform:uppercase;">Razón del Reporte:</label>
+                <span id="alertMotivo" class="dato-resaltado"></span>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px;">
+            <button onclick="eliminarInfraccion()" style="background:transparent; color:#888; border:1px solid #ddd; padding:8px 12px; font-size:11px; cursor:pointer; border-radius:4px;">Retirar Infracción 🛡️</button>
+            <button class="btn-negro" onclick="cerrarAlerta()" style="padding:10px 25px; border-radius:4px;">Enterad@ (Continuar)</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalPagoGeneral">
+    <div style="background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 350px; text-align: center;">
+        <h3 style="margin-top:0;">Registrar Pago</h3>
+        <p style="font-size:13px; color:#666;">Seleccione el método de pago recibido:</p>
+        
+        <select id="selectMetodoPagoGeneral" onchange="toggleInfoTrans(this.value, 'txtTransGeneral')" style="width:100%; padding:10px; margin-bottom:10px;">
+            <option value="Contado">Contado</option>
+            <option value="Transferencia">Transferencia</option>
+        </select>
+
+        <div id="txtTransGeneral" class="txt-trans">
+            728969000108174125 spin by oxxo Jorge Arturo Cordero Rojas
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+            <button onclick="document.getElementById('modalPagoGeneral').style.display='none'" style="padding:8px 15px;">Cancelar</button>
+            <button class="btn-negro" onclick="realizarPagoGeneral()" style="background:var(--verde);">Registrar Pago</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // Importamos las funciones necesarias de Firebase (Usamos versión estable 10.7.0)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    // Tu configuración exacta
+    const firebaseConfig = {
+        apiKey: "AIzaSyAstKJ4ZHnhS2SEIzMyUu_DK3DfEKdXW8s",
+        authDomain: "rentas-cordero-ced3d.firebaseapp.com",
+        projectId: "rentas-cordero-ced3d",
+        storageBucket: "rentas-cordero-ced3d.firebasestorage.app",
+        messagingSenderId: "266758467590",
+        appId: "1:266758467590:web:37aa7eed21dfa4b24d5387"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Variables globales (Sincronizadas con Firebase)
+    window.lavadoras = [];
+    window.pedidos = [];
+    let pedidoIDGlobal = null;
+    let reportIDGlobal = null; 
+    let permitirRegistro = false; 
+    
+    // Variables nuevas para el flujo de pago general
+    let accionPagoGlobal = null; // 'renta' o 'aplazo'
+    let idPagoGlobal = null;
+
+    // --- CONEXIÓN EN TIEMPO REAL (LISTENERS) ---
+    
+    // Escuchar Lavadoras
+    onSnapshot(collection(db, "lavadoras"), (snapshot) => {
+        window.lavadoras = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        renderInventario();
+        cargarSelect();
+    }, (error) => console.error("Error cargando lavadoras:", error));
+
+    // Escuchar Pedidos
+    onSnapshot(collection(db, "pedidos"), (snapshot) => {
+        window.pedidos = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        renderTablas(document.getElementById('buscador').value || '');
+        renderInventario(); 
+        cargarSelect();
+    }, (error) => console.error("Error cargando pedidos:", error));
+
+
+    // --- FUNCIONES DEL SISTEMA (CRUD CON FIREBASE) ---
+
+    window.sumarLavadora = async () => {
+        let n = document.getElementById('inv_num').value;
+        let m = document.getElementById('inv_mod').value;
+        if(!n) return alert("Número de lavadora necesario");
+        
+        try {
+            const id = Date.now().toString(); 
+            await setDoc(doc(db, "lavadoras", id), { 
+                num: n, 
+                mod: m, 
+                mantenimiento: false 
+            });
+            document.getElementById('inv_num').value = "";
+            document.getElementById('inv_mod').value = "";
+        } catch(e) {
+            console.error(e);
+            alert("Error al guardar. Revise su conexión.");
+        }
+    };
+
+    window.eliminarLavadora = async (id) => {
+        if(confirm("¿Eliminar esta lavadora de la base de datos?")) {
+            await deleteDoc(doc(db, "lavadoras", id.toString()));
+        }
+    };
+
+    window.toggleMantenimiento = async (id) => {
+        const l = window.lavadoras.find(x => x.id == id);
+        if(l) {
+            await updateDoc(doc(db, "lavadoras", id.toString()), { mantenimiento: !l.mantenimiento });
+        }
+    };
+
+    window.cambiarLavadora = async (idPedido, nuevaLavadora) => {
+        if(!nuevaLavadora) return;
+        if(confirm(`¿Confirmas el cambio de equipo a la lavadora #${nuevaLavadora}?`)) {
+            try {
+                await updateDoc(doc(db, "pedidos", idPedido), { lav: nuevaLavadora });
+            } catch(e) {
+                console.error(e);
+                alert("Error al cambiar lavadora.");
+            }
+        } else {
+            renderTablas(document.getElementById('buscador').value || '');
+        }
+    };
+
+    window.crearPedido = async () => {
+        let fRecogida = document.getElementById('fecha_recogida').value;
+        if(!fRecogida) return alert("Seleccione fecha de recogida.");
+        
+        let nom = document.getElementById('nombre').value.trim();
+        let cel = document.getElementById('celular').value.trim();
+        let calle = document.getElementById('calle').value.trim();
+        let num = document.getElementById('num_casa').value.trim();
+        let colonia = document.getElementById('colonia').value.trim();
+        let lav = document.getElementById('select_lav').value;
+
+        if(!nom || !lav) return alert("Nombre y Lavadora obligatorios");
+
+        // SI NO HEMOS DADO PERMISO EXPLICITO ("Enterad@"), VERIFICAMOS LISTA NEGRA
+        if(!permitirRegistro) {
+            try {
+                // Consultamos la colección "usuarios_reportados" (que es independiente de pedidos)
+                const reportesSnap = await getDocs(collection(db, "usuarios_reportados"));
+                let infractorDetectado = null;
+                
+                // Construimos la dirección actual como UNA SOLA ENTIDAD para comparar
+                const direccionActual = (calle + " " + num + " " + colonia).toLowerCase().replace(/\s+/g, '');
+
+                reportesSnap.forEach(doc => {
+                    const r = doc.data();
+                    let coincidencias = 0;
+
+                    // 1. Nombre
+                    if(r.nombre.toLowerCase() === nom.toLowerCase()) coincidencias++;
+                    // 2. Celular
+                    if(r.cel === cel) coincidencias++;
+                    // 3. Dirección Completa (Entidad única)
+                    const direccionReportada = (r.calle + " " + r.num_casa + " " + r.colonia).toLowerCase().replace(/\s+/g, '');
+                    // Validamos que no esté vacía y que coincida
+                    if(direccionActual.length > 5 && direccionReportada === direccionActual) coincidencias++;
+
+                    // Si hay 2 o 3 coincidencias, es el mismo usuario
+                    if(coincidencias >= 2) {
+                        infractorDetectado = { id: doc.id, ...r };
+                    }
+                });
+
+                if(infractorDetectado) {
+                    // MOSTRAR ALERTA ROJA Y DETENER PROCESO
+                    document.getElementById('alertNombre').innerText = infractorDetectado.nombre;
+                    document.getElementById('alertCel').innerText = infractorDetectado.cel;
+                    document.getElementById('alertDireccion').innerText = `${infractorDetectado.calle} #${infractorDetectado.num_casa}, ${infractorDetectado.colonia}`;
+                    document.getElementById('alertFolio').innerText = infractorDetectado.folio;
+                    document.getElementById('alertMotivo').innerText = infractorDetectado.motivo;
+                    
+                    reportIDGlobal = infractorDetectado.id; // Guardar ID para posible eliminación de infracción
+                    document.getElementById('modalAlerta').style.display = 'flex';
+                    return; // IMPORTANTE: DETIENE LA EJECUCIÓN AQUÍ
+                }
+
+            } catch(e) {
+                console.error("Error verificando lista negra:", e);
+                // Si falla la verificación por internet, decidimos si dejar pasar o avisar. Por seguridad avisamos.
+                alert("Error verificando antecedentes del cliente. Revise su conexión.");
+                return;
+            }
+        }
+
+        // SI NO HAY ALERTA O YA DIMOS "ENTERAD@"
+        const id = Date.now().toString();
+        const folio = "F-" + id.slice(-4); 
+
+        const nuevoPedido = {
+            folio: folio,
+            nombre: nom,
+            calle: calle,
+            num_casa: num,
+            colonia: colonia,
+            cel: cel,
+            lav: lav,
+            estado: 'negro',
+            pagado: false,
+            vence: fRecogida, 
+            aplazos: 0,
+            aplazosPagados: 0,
+            fechaRegistro: new Date().toISOString().split('T')[0],
+            metodoPago: '', // Campo para tipo de pago
+            detallesAplazos: [] // Nuevo campo para guardar metodo de pago de aplazos
+        };
+
+        try {
+            await setDoc(doc(db, "pedidos", id), nuevoPedido);
+            limpiarForm();
+            permitirRegistro = false; // Resetear bandera para el próximo
+        } catch(e) {
+            console.error(e);
+            alert("Error al crear pedido. Verifique conexión.");
+        }
+    };
+
+    window.eliminarPedido = async (id) => {
+        if(confirm("¿Eliminar este registro permanentemente de la nube?")) {
+            await deleteDoc(doc(db, "pedidos", id));
+        }
+    };
+
+    window.borrarHistorial = async () => {
+        const finalizados = window.pedidos.filter(p => p.estado === 'verde');
+        
+        if(finalizados.length === 0) {
+            return alert("No hay historial para borrar (no hay rentas finalizadas).");
+        }
+
+        if(confirm(`⚠️ ATENCIÓN:\n\nSe van a eliminar ${finalizados.length} registros del HISTORIAL (Rentas ya finalizadas).\n\nLas rentas activas NO se borrarán.\n\n¿Estás seguro?`)) {
+            let borrados = 0;
+            for (const p of finalizados) {
+                try {
+                    await deleteDoc(doc(db, "pedidos", p.id));
+                    borrados++;
+                } catch(e) {
+                    console.error("Error borrando pedido antiguo:", e);
+                }
+            }
+            alert(`Historial limpio. Se eliminaron ${borrados} registros antiguos.`);
+        }
+    };
+
+    // --- NUEVAS FUNCIONES PARA REPORTAR Y ALERTAS ---
+
+    window.reportarUsuario = (idPedido) => {
+        pedidoIDGlobal = idPedido; // Usamos la variable global para saber a quién reportamos
+        document.getElementById('modalReporte').style.display = 'flex';
+        document.getElementById('motivoReporte').value = "";
+        document.getElementById('motivoOtro').style.display = 'none';
+        document.getElementById('motivoOtro').value = "";
+    };
+
+    window.toggleOtro = (val) => {
+        document.getElementById('motivoOtro').style.display = (val === 'Otro') ? 'block' : 'none';
+    };
+
+    window.guardarReporte = async () => {
+        const p = window.pedidos.find(x => x.id === pedidoIDGlobal);
+        if(!p) return;
+
+        let motivo = document.getElementById('motivoReporte').value;
+        if(motivo === 'Otro') motivo = document.getElementById('motivoOtro').value;
+        
+        if(!motivo) return alert("Debe especificar un motivo para el reporte.");
+
+        const reporteData = {
+            nombre: p.nombre,
+            cel: p.cel,
+            calle: p.calle,
+            num_casa: p.num_casa,
+            colonia: p.colonia,
+            folio: p.folio,
+            motivo: motivo,
+            fechaReporte: new Date().toISOString().split('T')[0]
+        };
+
+        try {
+            await setDoc(doc(db, "usuarios_reportados", "REP-" + Date.now()), reporteData);
+            alert("Usuario reportado correctamente. Quedará registrado en la lista de infracciones.");
+            document.getElementById('modalReporte').style.display = 'none';
+        } catch(e) {
+            console.error(e);
+            alert("Error al guardar el reporte.");
+        }
+    };
+
+    window.cerrarAlerta = () => {
+        document.getElementById('modalAlerta').style.display = 'none';
+        permitirRegistro = true; // El usuario ya vio la alerta y decidió continuar
+    };
+
+    window.eliminarInfraccion = async () => {
+        if(confirm("⚠️ SEGURIDAD\n\n¿Está seguro de retirar la infracción a este usuario?\n\nAl hacerlo, se eliminará de la lista negra y no volverá a saltar la alerta.")) {
+            try {
+                await deleteDoc(doc(db, "usuarios_reportados", reportIDGlobal));
+                alert("Infracción retirada correctamente.");
+                document.getElementById('modalAlerta').style.display = 'none';
+                permitirRegistro = true; // Permitimos registrar ahora que está limpio
+            } catch(e) {
+                console.error(e);
+                alert("Error al retirar la infracción.");
+            }
+        }
+    };
+
+    // --- FIN FUNCIONES DE REPORTE ---
+
+    // --- FUNCIONES DE PAGO Y VISIBILIDAD DE TRANSFERENCIA ---
+
+    window.toggleInfoTrans = (metodo, idDiv) => {
+        const div = document.getElementById(idDiv);
+        if(metodo === 'Transferencia') {
+            div.style.display = 'block';
+        } else {
+            div.style.display = 'none';
+        }
+    };
+
+    window.confirmarEntrega = async () => {
+        if(!document.getElementById('fotoDocs').files[0]) return alert("Suba foto de INE.");
+        
+        const yaPago = document.getElementById('checkPagoModal').checked;
+        let metodoPagoSeleccionado = '';
+
+        if(yaPago) {
+            metodoPagoSeleccionado = document.getElementById('selectMetodoPagoFirma').value;
+        }
+
+        try {
+            await updateDoc(doc(db, "pedidos", pedidoIDGlobal), {
+                estado: 'amarillo',
+                pagado: yaPago,
+                metodoPago: metodoPagoSeleccionado // Guardamos el método si pagó
+            });
+            cerrarFirma();
+        } catch(e) { alert("Error al confirmar entrega"); }
+    };
+
+    // Modificamos pagarRenta para usar el nuevo modal
+    window.pagarRenta = (id) => {
+        accionPagoGlobal = 'renta';
+        idPagoGlobal = id;
+        document.getElementById('selectMetodoPagoGeneral').value = 'Contado';
+        toggleInfoTrans('Contado', 'txtTransGeneral');
+        document.getElementById('modalPagoGeneral').style.display = 'flex';
+    };
+
+    // Modificamos pagarAplazamiento para usar el nuevo modal
+    window.pagarAplazamiento = (id) => {
+        accionPagoGlobal = 'aplazo';
+        idPagoGlobal = id;
+        document.getElementById('selectMetodoPagoGeneral').value = 'Contado';
+        toggleInfoTrans('Contado', 'txtTransGeneral');
+        document.getElementById('modalPagoGeneral').style.display = 'flex';
+    };
+
+    // Función que ejecuta el modal general de pagos
+    window.realizarPagoGeneral = async () => {
+        const metodo = document.getElementById('selectMetodoPagoGeneral').value;
+        const p = window.pedidos.find(x => x.id === idPagoGlobal);
+
+        try {
+            if(accionPagoGlobal === 'renta') {
+                await updateDoc(doc(db, "pedidos", idPagoGlobal), { 
+                    pagado: true,
+                    metodoPago: metodo 
+                });
+            } else if (accionPagoGlobal === 'aplazo') {
+                if(p && p.aplazosPagados < p.aplazos) {
+                    // GUARDAR METODO DE PAGO EN ARRAY "detallesAplazos"
+                    let currentDetalles = p.detallesAplazos || [];
+                    // Agregamos el nuevo pago con su método
+                    let updatedDetalles = [...currentDetalles, { index: p.aplazosPagados + 1, metodo: metodo }];
+                    
+                    await updateDoc(doc(db, "pedidos", idPagoGlobal), { 
+                        aplazosPagados: p.aplazosPagados + 1,
+                        detallesAplazos: updatedDetalles
+                    });
+                }
+            }
+            document.getElementById('modalPagoGeneral').style.display = 'none';
+        } catch(e) {
+            console.error(e);
+            alert("Error al registrar el pago.");
+        }
+    };
+
+    window.aplazar = async (id) => {
+        let p = window.pedidos.find(x => x.id === id);
+        let dias = prompt("Días extra:", "1");
+        if(dias) {
+            let nv = new Date(p.vence);
+            nv.setDate(nv.getDate() + parseInt(dias)); 
+            await updateDoc(doc(db, "pedidos", id), {
+                vence: nv.toISOString().split('T')[0],
+                aplazos: p.aplazos + 1
+            });
+        }
+    };
+
+    window.finalizar = async (id) => {
+        let p = window.pedidos.find(x => x.id === id);
+        if(!p.pagado || p.aplazosPagados < p.aplazos) return alert("⛔ NO SE PUEDE FINALIZAR: Tiene pagos pendientes.");
+        if(confirm("¿Lavadora recogida?")) {
+            await updateDoc(doc(db, "pedidos", id), { estado: 'verde' });
+        }
+    };
+
+    // Funciones de UI Auxiliares 
+    window.reRentar = (id) => {
+        let p = window.pedidos.find(x => x.id === id);
+        document.getElementById('nombre').value = p.nombre;
+        document.getElementById('calle').value = p.calle;
+        document.getElementById('num_casa').value = p.num_casa;
+        document.getElementById('colonia').value = p.colonia;
+        document.getElementById('celular').value = p.cel;
+        document.getElementById('select_lav').value = "";
+        document.getElementById('fecha_recogida').value = "";
+        document.getElementById('form-registro').scrollIntoView({behavior: "smooth"});
+    };
+
+    window.abrirFirma = (id) => {
+        pedidoIDGlobal = id;
+        document.getElementById('modalFirma').style.display = 'flex';
+        document.getElementById('fotoDocs').value = "";
+        document.getElementById('checkPagoModal').checked = false;
+        document.getElementById('divPagoOpciones').style.display = 'none'; // Ocultar opciones al abrir
+        limpiarFirma();
+    };
+
+    // Listener para el checkbox del modal de firma
+    document.getElementById('checkPagoModal').addEventListener('change', (e) => {
+        const div = document.getElementById('divPagoOpciones');
+        if(e.target.checked) {
+            div.style.display = 'block';
+            document.getElementById('selectMetodoPagoFirma').value = 'Contado';
+            toggleInfoTrans('Contado', 'txtTransFirma');
+        } else {
+            div.style.display = 'none';
+        }
+    });
+
+    window.cerrarFirma = () => document.getElementById('modalFirma').style.display = 'none';
+
+    // --- RENDERIZADO (UI) ---
+
+    window.renderInventario = () => {
+        let g = document.getElementById('grid-inv');
+        if (!g) return;
+        g.innerHTML = '';
+        window.lavadoras.forEach(l => {
+            let ocupada = window.pedidos.find(p => p.lav === l.num && p.estado !== 'verde');
+            let clase = l.mantenimiento ? 'lav-mante' : (ocupada ? 'lav-ocupada' : 'lav-libre');
+            g.innerHTML += `
+                <div class="lavadora-card ${clase}">
+                    <button class="btn-del-item" onclick="eliminarLavadora('${l.id}')">×</button>
+                    <b>#${l.num}</b><br><small>${l.mod}</small><br>
+                    ${!ocupada ? `<button class="btn-mante" onclick="toggleMantenimiento('${l.id}')">MANT.</button>` : ''}
+                </div>`;
+        });
+        setTimeout(() => window.renderTablas(document.getElementById('buscador').value || ''), 50);
+    };
+
+    window.cargarSelect = () => {
+        let s = document.getElementById('select_lav');
+        if (!s) return;
+        s.innerHTML = '<option value="">Seleccionar Lavadora</option>';
+        window.lavadoras.forEach(l => {
+            let ocupada = window.pedidos.find(p => p.lav === l.num && p.estado !== 'verde');
+            if(!ocupada && !l.mantenimiento) s.innerHTML += `<option value="${l.num}">${l.num} - ${l.mod}</option>`;
+        });
+    };
+
+    const fechaEsp = (fechaStr) => {
+        if(!fechaStr) return "";
+        const [y, m, d] = fechaStr.split('-');
+        const fecha = new Date(y, m - 1, d); 
+        return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    window.renderTablas = (resultadoBusqueda) => {
+        let b = document.getElementById('tabla-body');
+        if (!b) return;
+
+        let htmlAcumulado = "";
+        let hoy = new Date().toISOString().split('T')[0];
+
+        let listaMostrar = [...window.pedidos].sort((a, b) => {
+            return new Date(a.vence) - new Date(b.vence);
+        });
+        
+        listaMostrar.forEach(p => {
+            let busquedaStr = (p.nombre + " " + p.calle + " " + p.folio).toLowerCase();
+            if(resultadoBusqueda && !busquedaStr.includes(resultadoBusqueda.toLowerCase())) return;
+            
+            let estRenta = p.estado;
+            if(estRenta === 'amarillo' && hoy > p.vence) estRenta = 'rojo';
+            let txtRenta = {negro:'Por Entregar', amarillo:'En Uso', rojo:'Recoger', verde:'Finalizado'}[estRenta] || estRenta;
+            
+            let fullAddr = `${p.calle} ${p.num_casa}, ${p.colonia}, Mazatlan`;
+            let mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddr)}`;
+            
+            // MOSTRAR APLAZAMIENTOS CON SU METODO DE PAGO EN PARENTESIS
+            let htmlAplazamientos = "";
+            for(let i=1; i <= p.aplazos; i++) {
+                let colorStatus = i <= p.aplazosPagados ? "bg-verde" : "bg-rojo";
+                
+                // Buscar si tenemos detalle de este aplazamiento (índice array es i-1)
+                let txtMetodoAplazo = "";
+                if(i <= p.aplazosPagados && p.detallesAplazos && p.detallesAplazos[i-1]) {
+                    txtMetodoAplazo = ` (${p.detallesAplazos[i-1].metodo})`;
+                }
+
+                htmlAplazamientos += `<div class="status-box ${colorStatus}">Pagar aplazamiento #${i}${txtMetodoAplazo}</div><br>`;
+            }
+
+            // --- LÓGICA DE LAVADORA CON ESTILO MINIMALISTA ---
+            let lavActualInfo = window.lavadoras.find(l => l.num === p.lav);
+            let modeloActual = lavActualInfo ? lavActualInfo.mod : "Desconocido";
+
+            let opcionesLavadora = `<option value="${p.lav}" selected>${p.lav} - ${modeloActual}</option>`;
+            
+            window.lavadoras.forEach(l => {
+                let ocupadaPorOtro = window.pedidos.find(orden => orden.lav === l.num && orden.estado !== 'verde' && orden.id !== p.id);
+                if(!l.mantenimiento && !ocupadaPorOtro && l.num !== p.lav) {
+                    opcionesLavadora += `<option value="${l.num}">${l.num} - ${l.mod}</option>`;
+                }
+            });
+
+            // LOGICA ESTADO DE PAGO: MOSTRAR TIPO (Contado/Transferencia)
+            let textoEstadoPago = "PENDIENTE";
+            let clasePago = "bg-rojo";
+            if (p.pagado) {
+                textoEstadoPago = "PAGADO";
+                if(p.metodoPago) {
+                    textoEstadoPago += ` (${p.metodoPago})`;
+                }
+                clasePago = "bg-verde";
+            }
+
+            htmlAcumulado += `
+                <tr>
+                    <td>
+                        <span style="font-size:11px; color:var(--azul); font-weight:bold;">FOLIO: ${p.folio}</span><br>
+                        <b>${p.nombre}</b><br><small>${p.calle} #${p.num_casa}</small><br>
+                        <a href="${mapsLink}" target="_blank" class="maps-link">📍 Ver en Maps</a>
+                    </td>
+                    <td>
+                        <select onchange="cambiarLavadora('${p.id}', this.value)" class="select-minimal">
+                            ${opcionesLavadora}
+                        </select>
+                    </td>
+                    <td>
+                        <div class="status-box bg-${estRenta}">${txtRenta}</div><br>
+                        <small><b>Registro:</b> ${p.fechaRegistro}</small><br>
+                        <small><b>Vencimiento:</b> <br>${fechaEsp(p.vence)}</small>
+                    </td>
+                    <td>
+                        <div class="status-box ${clasePago}">${textoEstadoPago}</div><br>
+                        ${htmlAplazamientos}
+                    </td>
+                    <td>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            ${p.estado === 'verde' ? `
+                                <div style="display:flex; align-items:center; gap:5px;">
+                                    <button class="btn-rerentar" onclick="reRentar('${p.id}')" style="flex-grow:1;">Renovación de renta</button>
+                                    <button onclick="eliminarPedido('${p.id}')" style="background:none; border:none; color:var(--rojo); font-weight:bold; font-size:16px; cursor:pointer;" title="Eliminar registro">X</button>
+                                </div>
+                            ` : `
+                                <button onclick="generarContrato('${p.id}')" style="font-size:11px; font-weight:bold;">📄 Contrato</button>
+                                
+                                <button class="btn-reporte" onclick="reportarUsuario('${p.id}')">⚠️ REPORTAR</button>
+
+                                ${p.estado === 'negro' ? `<button class="btn-negro" onclick="abrirFirma('${p.id}')">Entregar</button>` : ''}
+                                ${!p.pagado && p.estado !== 'negro' ? `<button class="btn-pago" onclick="pagarRenta('${p.id}')">Pagar Renta</button>` : ''}
+                                ${p.aplazos > 0 && p.aplazosPagados < p.aplazos ? `<button class="btn-pago" style="background:#8e44ad" onclick="pagarAplazamiento('${p.id}')">Pago Aplazo</button>` : ''}
+                                ${p.estado !== 'negro' ? `<button class="btn-rerentar" onclick="reRentar('${p.id}')">Renovación de renta</button>` : ''}
+                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button class="btn-aplazar" onclick="aplazar('${p.id}')">Renovar fecha</button>` : ''}
+                                ${p.estado !== 'verde' && p.estado !== 'negro' ? `<button onclick="finalizar('${p.id}')" style="background:var(--verde); color:white; border:none; padding:5px;">Finalizar rentado</button>` : ''}
+                                <button class="btn-del-tabla" onclick="eliminarPedido('${p.id}')">Eliminar ×</button>
+                            `}
+                        </div>
+                    </td>
+                </tr>`;
+        });
+        b.innerHTML = htmlAcumulado;
+    };
+
+    // --- FUNCIONES EXTRA (PDF, Canvas, Autocomplete) ---
+
+    window.generarContrato = (id) => {
+        const p = window.pedidos.find(x => x.id === id);
+        if(!p) return;
+        const l = window.lavadoras.find(lav => lav.num === p.lav) || {mod: "Genérica"};
+        const { jsPDF } = window.jspdf;
+        
+        // FORMATO TICKET (ANCHURA 48MM, ALTURA AUTOMÁTICA APROX 350MM)
+        const doc = new jsPDF({ unit: 'mm', format: [48, 350] });
+        
+        // AGREGAR LOGO (MODIFICADO PARA USAR LA IMAGEN ESPECÍFICA)
+        const imgElement = document.getElementById('imgTicket');
+        if (imgElement && imgElement.src) {
+            try {
+                // Dibujar en canvas temporal para asegurar la conversión correcta a dataURL
+                const canvasImg = document.createElement('canvas');
+                canvasImg.width = imgElement.naturalWidth;
+                canvasImg.height = imgElement.naturalHeight;
+                const ctxImg = canvasImg.getContext('2d');
+                ctxImg.drawImage(imgElement, 0, 0);
+                const imgData = canvasImg.toDataURL('image/png');
+                
+                // Agregar al PDF (Logo pequeño arriba)
+                doc.addImage(imgData, 'PNG', 2, 2, 12, 12);
+            } catch(e) {
+                console.warn("No se pudo cargar el logo en el PDF", e);
+            }
+        }
+
+        // CONFIGURACIÓN DE TEXTOS PARA TICKET (48mm ANCHO)
+        // Usamos fuente pequeña para que quepa todo el texto original
+        doc.setFontSize(9);
+        doc.text("RENTAS CORDERO", 24, 18, {align: 'center'}); // Centrado (48/2 = 24)
+        
+        doc.setFontSize(7);
+        doc.text("Cel: 6693291400 / 6691081918", 24, 23, {align: 'center'});
+        
+        doc.setFontSize(6); // Fuente pequeña para el contenido denso
+        let yPos = 30;
+        const margin = 2;
+        const width = 44; // 48 - 4 de margen
+
+        doc.text(`FOLIO: ${p.folio}`, margin, yPos); yPos+=4;
+        doc.text(`FECHA: ${fechaEsp(p.fechaRegistro)}`, margin, yPos); yPos+=4;
+        doc.text(`CLIENTE: ${p.nombre.toUpperCase()}`, margin, yPos); yPos+=4;
+        doc.text(`TEL: ${p.cel}`, margin, yPos); yPos+=4;
+        
+        // CARTA RESPONSIVA (TEXTO EXACTO DEL ARCHIVO ORIGINAL)
+        doc.setFont(undefined, 'bold');
+        doc.text("CARTA RESPONSIVA:", margin, yPos+2); yPos+=6;
+        doc.setFont(undefined, 'normal');
+        
+        const fIni = new Date(p.fechaRegistro);
+        const fFin = new Date(p.vence);
+        const diffTime = Math.abs(fFin - fIni);
+        const diasRenta = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 0;
+
+        let textoResponsiva = `Rento lavadora por ${diasRenta} días de la marca ${l.mod} (#${p.lav}) con dirección en ${p.calle} #${p.num_casa}, Col. ${p.colonia}. Haciendo entrega el día ${fechaEsp(p.fechaRegistro)} y fecha en la que se recoge el día ${fechaEsp(p.vence)} en la hora acordada.`;
+        
+        let splitResponsiva = doc.splitTextToSize(textoResponsiva, width);
+        doc.text(splitResponsiva, margin, yPos);
+        yPos += (splitResponsiva.length * 3) + 2;
+
+        // CLÁUSULAS (TEXTO EXACTO DEL ARCHIVO ORIGINAL)
+        doc.setFont(undefined, 'bold');
+        doc.text("CLÁUSULAS:", margin, yPos+2); yPos+=6;
+        doc.setFont(undefined, 'normal');
+        
+        let clausulas = [
+            "-ESTOY DE ACUERDO QUE DEBE ENTREGAR DICHA LAVADORA EN EL DOMICILIO ACORDADO ANTERIORMENTE, DE LO CONTRARIO, DEBO PAGAR UNA MULTA DEL PAGO ANTERIOR.",
+            "-DICHA LAVADORA LA TENGO QUE ENTREGAR EN LAS MISMAS CONDICIONES COMO SE FUE RENTADA, TENGO EL COMPROMISO DE MANTENERLA ASI, HASTA LA FECHA QUE DEBO ENTREGARLA." ,
+            "-ES MI RESPONSABILIDAD DE ENTREGAR DICHA LAVADORA EL DIA Y HORA ESTIMULADA ANTERIORMENTE, SI NO ES ASI, SE ME COBRARA UN COSTO ADICIONAL.",
+            "-SI OCUPO ENTREGAR DICHA LAVADORA ANTES DE TIEMPO, ME COMPROMETO EN AVISAR CON UN MINIMO DE 24 HORAS.",
+            "-SI ME INTERESA RENOVAR CONTRATO, DEBO AVISAR ANTES DE LA HORA ACORDADA Y PAGAR, SI NO ES ASI ME COMPROMETO A ENTREGARLA."
+        ];
+        
+        clausulas.forEach(c => {
+            let splitC = doc.splitTextToSize(c, width);
+            doc.text(splitC, margin, yPos);
+            yPos += (splitC.length * 3) + 2;
+        });
+
+        // TRANSFERENCIA
+        if (p.metodoPago === 'Transferencia') {
+            yPos += 2;
+            doc.setFont(undefined, 'bold');
+            doc.text("DATOS TRANSFERENCIA:", margin, yPos); yPos+=4;
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(41, 128, 185);
+            let txtTrans = "728969000108174125 spin by oxxo Jorge Arturo Cordero Rojas";
+            let splitTrans = doc.splitTextToSize(txtTrans, width);
+            doc.text(splitTrans, margin, yPos);
+            yPos += (splitTrans.length * 3) + 2;
+            doc.setTextColor(0, 0, 0); // Restaurar color negro
+        }
+
+        // FIRMA (MAS GRANDE Y VISIBLE)
+        yPos += 30; // Mayor espacio vertical antes de la firma
+        doc.setLineWidth(0.5);
+        doc.line(5, yPos, 43, yPos); // Línea de firma
+        
+        yPos += 5;
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.text("FIRMA DEL CLIENTE", 24, yPos, {align: 'center'});
+
+        doc.save(`Ticket_${p.folio}.pdf`);
+    };
+
+    window.descargarPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); 
+        const hoy = new Date().toISOString().split('T')[0];
+        doc.setFontSize(16);
+        doc.text("REPORTE OPERATIVO - RENTAS CORDERO", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha de solicitud del reporte: ${new Date().toLocaleString()}`, 14, 22);
+        
+        let lista = window.pedidos; 
+
+        // CONTADORES DE PAGO PARA REPORTE GENERAL
+        let countContado = lista.filter(x => x.pagado && (x.metodoPago === 'Contado' || !x.metodoPago)).length;
+        let countTransfer = lista.filter(x => x.pagado && x.metodoPago === 'Transferencia').length;
+
+        doc.setFont(undefined, 'bold');
+        doc.text(`RESUMEN DE PAGOS REGISTRADOS: Contado: ${countContado} | Transferencia: ${countTransfer}`, 14, 28);
+        doc.setFont(undefined, 'normal');
+
+        // FUNCIÓN AUXILIAR PARA CALCULAR PAGOS POR CLIENTE (RENTA + APLAZOS)
+        const getPagosCT = (p) => {
+            let c = 0, t = 0;
+            // Conteo de Renta Principal
+            if(p.pagado) { 
+                if(p.metodoPago === 'Transferencia') t++; 
+                else c++; 
+            }
+            // Conteo de Aplazamientos
+            let detalles = p.detallesAplazos || [];
+            detalles.forEach(d => {
+                if(d.metodo === 'Transferencia') t++;
+                else c++;
+            });
+            // Soporte para datos antiguos (si existen aplazos pagados sin detalle guardado, asumimos contado o dejamos en C)
+            let legacyAplazos = p.aplazosPagados - detalles.length;
+            if(legacyAplazos > 0) c += legacyAplazos;
+
+            return `${c} / ${t}`;
+        };
+
+        // 1. PENDIENTES
+        doc.setFont(undefined, 'bold'); doc.text("1. PENDIENTES DE ENTREGA", 14, 35);
+        const d1 = lista.filter(x => x.estado === 'negro').sort((a,b) => a.folio.localeCompare(b.folio))
+                          .map(p => [p.folio, p.nombre, p.cel, p.lav, "PENDIENTE", p.fechaRegistro, p.vence]);
+        doc.autoTable({ startY: 38, head: [['Folio', 'Nombre', 'Celular', 'Lavadora', 'Estado', 'Registro', 'Vencimiento']], body: d1 });
+        
+        // 2. EN USO (AGREGADO COLUMNA Pagos (C/T))
+        doc.text("2. USUARIOS EN USO", 14, doc.lastAutoTable.finalY + 10);
+        const d2 = lista.filter(x => x.estado === 'amarillo' && hoy <= x.vence)
+                          .map(p => [p.folio, p.nombre, p.cel, p.lav, "EN USO", p.aplazos, `${p.aplazosPagados}/${p.aplazos}`, getPagosCT(p), p.vence]);
+        doc.autoTable({ startY: doc.lastAutoTable.finalY + 15, head: [['Folio', 'Nombre', 'Celular', 'Lavadora', 'Estado', 'Aplazos', 'Pagados', 'Pagos (C/T)', 'Vencimiento']], body: d2 });
+        
+        // 3. RECOGER (AGREGADO COLUMNA Pagos (C/T))
+        doc.text("3. LAVADORAS POR RECOGER", 14, doc.lastAutoTable.finalY + 10);
+        const d3 = lista.filter(x => (x.estado === 'amarillo' && hoy > x.vence) || x.estado === 'rojo')
+                          .map(p => [p.folio, p.nombre, p.cel, p.lav, "RECOGER", p.aplazos, `${p.aplazosPagados}/${p.aplazos}`, getPagosCT(p), p.vence]);
+        doc.autoTable({ startY: doc.lastAutoTable.finalY + 15, head: [['Folio', 'Nombre', 'Celular', 'Lavadora', 'Estado', 'Aplazos', 'Pagados', 'Pagos (C/T)', 'Vencimiento']], body: d3 });
+        
+        // 4. ENTREGADAS (AGREGADO COLUMNA Pagos (C/T))
+        doc.text("4. LAVADORAS YA RECOGIDAS", 14, doc.lastAutoTable.finalY + 10);
+        const d4 = lista.filter(x => x.estado === 'verde')
+                          .map(p => [p.folio, p.nombre, p.cel, p.lav, "RECOGIDA", p.aplazos, `${p.aplazosPagados}/${p.aplazos}`, getPagosCT(p), p.vence]);
+        doc.autoTable({ startY: doc.lastAutoTable.finalY + 15, head: [['Folio', 'Nombre', 'Celular', 'Lavadora', 'Estado', 'Aplazos', 'Pagados', 'Pagos (C/T)', 'Vencimiento']], body: d4 });
+        
+        doc.save(`Reporte General Online (${hoy}).pdf`);
+    };
+
+    window.autoCompleta = (input, campo) => {
+        let val = input.value.toLowerCase();
+        let list = document.getElementById('sug-' + campo);
+        if(val.length < 2) { list.style.display = 'none'; return; }
+        let coinc = window.pedidos.filter(p => p[campo] && p[campo].toLowerCase().includes(val));
+        let unicos = [...new Map(coinc.map(i => [i[campo], i])).values()]; 
+        if(unicos.length > 0) {
+            list.innerHTML = '';
+            unicos.forEach(u => {
+                let d = document.createElement('div');
+                d.className = 'ac-item';
+                d.innerText = u[campo] + ` (${u.colonia})`;
+                d.onclick = () => {
+                    document.getElementById('nombre').value = u.nombre;
+                    document.getElementById('calle').value = u.calle;
+                    document.getElementById('num_casa').value = u.num_casa;
+                    document.getElementById('colonia').value = u.colonia;
+                    document.getElementById('celular').value = u.cel;
+                    list.style.display = 'none';
+                    document.getElementById('nombre').blur();
+                };
+                list.appendChild(d);
+            });
+            list.style.display = 'block';
+        }
+    };
+
+    window.limpiarForm = () => { 
+        document.querySelectorAll('#form-registro input:not(#nombre)').forEach(i => i.value = ''); 
+        document.getElementById('select_lav').value = "";
+        document.getElementById('fecha_recogida').value = "";
+    };
+    
+    window.limpiarFirma = () => { 
+        const canvas = document.getElementById('canvasFirma');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,450,200); 
+    };
+
+    const canvas = document.getElementById('canvasFirma');
+    const ctx = canvas.getContext('2d');
+    let dib = false;
+    canvas.addEventListener('mousedown', () => dib = true);
+    window.addEventListener('mouseup', () => { dib = false; ctx.beginPath(); });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!dib) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+        dib = true;
+        ctx.beginPath();
+        e.preventDefault(); 
+    }, {passive: false});
+
+    canvas.addEventListener('touchend', () => { dib = false; }, {passive: false});
+
+    canvas.addEventListener('touchmove', (e) => {
+        if(!dib) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    }, {passive: false});
+
+</script>
+</body>
+</html>
